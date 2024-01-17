@@ -55,7 +55,9 @@ async def registration(message: types.Message):
 
         botdb.add_user(user_id, name, city, area, street, house, flat)
 
-        await message.answer("Поздравляю, вы зарегистрированы!")
+        await message.answer(
+            "Поздравляю, вы зарегистрированы! Перезапустите бота командой /start"
+        )
 
 
 # сообщение с кнопкой оплаты
