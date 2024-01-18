@@ -1,10 +1,16 @@
 from aiogram import types
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters import Text
+from aiogram.types import ParseMode
 from aiogram.types.message import ContentType
+import aiogram.utils.markdown as md
 
+from datetime import datetime
 
-import config
 from disp import PRICE, bot, dp, botdb, check_sub
+import config
 from custom_keyboard.user_keyboard import user_kb
+from states.user import Description
 
 
 @dp.message_handler(commands=["start"])
@@ -17,7 +23,7 @@ async def start(message: types.Message):
     if check_mem != True:
         await message.answer(check_mem)
     elif botdb.user_exist(user_id):
-        await message.answer("Hello, guy!", reply_markup=user_kb)
+        await message.answer("Hello, world!", reply_markup=user_kb)
     else:
         await message.answer(
             f"Здравствуй, {message.from_user.first_name}! Если ты здесь впервые, то рекомендую тебе отправить команду /help"
@@ -35,6 +41,7 @@ async def help(message: types.Message):
     )
 
 
+# регистрация клиента
 @dp.message_handler(commands=["reg"])
 async def registration(message: types.Message):
     user_id = message.from_user.id
@@ -96,6 +103,7 @@ async def pre_checkout_query(pre_checkout_q: types.PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_q.id, ok=True)  # type: ignore
 
 
+# выдача Prime-статуса после оплаты
 @dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT)
 async def successful_payment(message: types.Message):
     print("SUCCESSFUL PAYMENT")
@@ -107,6 +115,43 @@ async def successful_payment(message: types.Message):
         message.chat.id,
         f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно!",
     )
+
+
+# отмена операции. Пример: отмена оформления заявки на вынос мусора
+@dp.message_handler(state="*", commands="cancel")
+@dp.message_handler(Text(equals="отмена", ignore_case=True), state="*")
+async def cancel_handler(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("Нечего отменять")
+        return
+
+    await state.finish()
+    await message.answer("Отмена операции")
+
+
+# получаем описание к заказу
+@dp.message_handler(state=Description.description)
+async def write_description(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["description"] = message.text
+        await message.answer(f"Is it right description?\n{data['description']}")
+    await Description.next()
+
+
+# подтверждаем, что описание верное и формируем заявку
+@dp.message_handler(state=Description.successful)
+async def successful_order(message: types.Message, state: FSMContext):
+    if message.text == "нет":
+        await message.answer("Leave your description for the order")
+        await Description.description.set()
+    else:
+        async with state.proxy() as data:
+            user_id = message.from_user.id
+            date = str(datetime.now().strftime("%d-%m-%Y %H:%M"))
+            botdb.add_order(user_id, data["description"], date)
+            await message.answer(f"Your order {botdb.data_order(user_id)} saved")
+        await state.finish()
 
 
 @dp.message_handler()

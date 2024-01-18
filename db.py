@@ -31,7 +31,9 @@ class BotDB:
             """
             CREATE TABLE IF NOT EXISTS Orders(
             id INTEGER PRIMARY KEY,
+            status TEXT DEFAULT 'active',
             description TEXT DEFAULT NULL,
+            date TEXT NOT NULL,
             user_id INTEGER,
             FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE
             )
@@ -55,13 +57,35 @@ class BotDB:
         )
         self.conn.commit()
 
-    def add_order(self, user_id, description):
+    def data_user(self, user_id):
+        """Извлечения данных клиента"""
+        data = self.cursor.execute(
+            'SELECT * FROM "Users" WHERE "user_id" = ?', (user_id,)
+        )
+        return data.fetchall()
+
+    def order_exist(self, user_id):
+        """Проверка на наличие активного заказа у клиента в БД"""
+        data = self.cursor.execute(
+            'SELECT "status" FROM "Orders" WHERE "user_id" = ?', (user_id,)
+        )
+        return bool(len(data.fetchall()))
+
+    def add_order(self, user_id, description, date):
         """Сохранение завки"""
         self.cursor.execute(
-            "INSERT INTO Orders(user_id, description) VALUES (?,?)",
-            (user_id, description),
+            "INSERT INTO Orders(user_id, description, date) VALUES (?,?,?)",
+            (user_id, description, date),
         )
         return self.conn.commit()
+
+    def data_order(self, user_id):
+        """Извлечения данных о заказе"""
+        data = self.cursor.execute(
+            'SELECT * FROM "Orders" WHERE "user_id" = ? and "status" = "active"',
+            (user_id,),
+        )
+        return data.fetchall()
 
     def close(self):
         """Закрытие соединения с БД"""
