@@ -36,7 +36,7 @@ async def help(message: types.Message):
         f"""Этот бот предназначен для создания сервиса по вынесу вашего мусора не выходя из дома\n
 Чтобы начать пользоваться ботом, необходимо подписаться на канал {config.CHANNEL_LINK} и предоставить ваше ФИО и адрес места жительства. Для регистрации отправьте команду /reg.\n
 Дальше вам необходимо оформить подписку на сервис или же, если вы у нас впервые, воспользоваться бесплатной пробной заявкой!\n
-Затем вы можете оформить заказ просто отправив сообщение "Вынести", или же нажав на одноимённую кнопку.\n
+Затем вы можете оформить заказ просто нажав на кнопку "Вынести".\n
 Напоминаем, что первый заказ - бесплатный!"""
     )
 
@@ -135,22 +135,25 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 async def write_description(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["description"] = message.text
-        await message.answer(f"Is it right description?\n{data['description']}")
+        await message.answer(
+            f"Вы уверены в своем описании(да/нет)?\n{data['description']}"
+        )
     await Description.next()
 
 
 # подтверждаем, что описание верное и формируем заявку
 @dp.message_handler(state=Description.successful)
 async def successful_order(message: types.Message, state: FSMContext):
-    if message.text == "нет":
-        await message.answer("Leave your description for the order")
+    if message.text.lower() == "нет":
+        await message.answer("Измените описание к вашему заказ:")
         await Description.description.set()
     else:
         async with state.proxy() as data:
             user_id = message.from_user.id
             date = str(datetime.now().strftime("%d-%m-%Y %H:%M"))
             botdb.add_order(user_id, data["description"], date)
-            await message.answer(f"Your order {botdb.data_order(user_id)} saved")
+            order_id = botdb.data_order(user_id, status="active")[0][0]
+            await message.answer(f"Ваш заказ №{order_id} офомлен!")
         await state.finish()
 
 
@@ -163,4 +166,6 @@ async def echo(message: types.Message):
     if check_mem != True:
         await message.answer(check_mem)
     else:
-        await message.answer("I don't understand you!")
+        await message.answer(
+            "Я не понимаю вас. Отправьте команду /help для получения справки по боту"
+        )

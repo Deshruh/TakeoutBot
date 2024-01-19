@@ -21,7 +21,6 @@ class BotDB:
             street TEXT NOT NULL,
             home INTEGER NOT NULL,
             flat INTEGER NOT NULL,
-            orders TEXT DEFAULT NULL,
             prime INTEGER DEFAULT NULL
             )
             """
@@ -67,7 +66,8 @@ class BotDB:
     def order_exist(self, user_id):
         """Проверка на наличие активного заказа у клиента в БД"""
         data = self.cursor.execute(
-            'SELECT "status" FROM "Orders" WHERE "user_id" = ?', (user_id,)
+            'SELECT "status" FROM "Orders" WHERE "user_id" = ? and "status" = "active"',
+            (user_id,),
         )
         return bool(len(data.fetchall()))
 
@@ -79,12 +79,19 @@ class BotDB:
         )
         return self.conn.commit()
 
-    def data_order(self, user_id):
+    def data_order(self, user_id, status=None):
         """Извлечения данных о заказе"""
-        data = self.cursor.execute(
-            'SELECT * FROM "Orders" WHERE "user_id" = ? and "status" = "active"',
-            (user_id,),
-        )
+        if status == "active":
+            data = self.cursor.execute(
+                'SELECT * FROM "Orders" WHERE "user_id" = ? and "status" = "active"',
+                (user_id,),
+            )
+        else:
+            data = self.cursor.execute(
+                'SELECT * FROM "Orders" WHERE "user_id" = ?',
+                (user_id,),
+            )
+
         return data.fetchall()
 
     def close(self):

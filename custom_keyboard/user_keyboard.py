@@ -28,10 +28,10 @@ async def callback(call: types.CallbackQuery):
 
     elif call.data == "takeout":
         if botdb.order_exist(call.message.chat.id):
-            await call.message.answer(f"Your order exist!")
+            await call.message.answer(f"У тебя уже есть активный заказ!")
         else:
             await Description.description.set()
-            await call.message.answer("Leave your description for the order")
+            await call.message.answer("Оставьте описание к вашему заказ:")
 
     elif call.data == "buy":
         if PAYMENTS_TOKEN.split(":")[1] == "TEST":
@@ -54,7 +54,30 @@ async def callback(call: types.CallbackQuery):
         )
 
     elif call.data == "history":
-        await call.message.answer("Button HISTORY succesful work!")
+        chat_id = call.message.chat.id
+        orders = botdb.data_order(chat_id)
+        name = botdb.data_user(chat_id)[0][1]
+
+        # await bot.send_message(
+        #    chat_id,
+        #    md.text(
+
+        #    )
+        # )
+        history = ""
+        for order in orders:
+            history += f"""
+Номер заказа: {order[0]}
+Статус: {order[1]}
+Описание: {order[2]}
+Дата оформления: {order[3].split(' ')[0]}
+"""
+
+        await call.message.answer(
+            f"""
+            История заказов пользователя \"{name}\":\n{history}
+            """
+        )
 
     elif call.data == "rules":
         await call.message.answer("Button RULES succesful work!")
