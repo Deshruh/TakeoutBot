@@ -9,8 +9,8 @@ from datetime import datetime
 
 from disp import PRICE, bot, dp, botdb, check_sub
 import config
-from custom_keyboard.user_keyboard import user_kb
-from states.user import Description
+from custom_keyboard.user_keyboard import user_kb, successful_kb, delete_kb
+from states.user import Description, Form
 
 
 @dp.message_handler(commands=["start"])
@@ -41,30 +41,93 @@ async def help(message: types.Message):
     )
 
 
+# отмена операции. Пример: отмена оформления заявки на вынос мусора
+@dp.message_handler(state="*", commands="cancel")
+@dp.message_handler(Text(equals="отмена", ignore_case=True), state="*")
+async def cancel_handler(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("Нечего отменять")
+        return
+
+    await state.finish()
+    await message.answer("Отмена операции")
+
+
 # регистрация клиента
 @dp.message_handler(commands=["reg"])
 async def registration(message: types.Message):
     user_id = message.from_user.id
     if botdb.user_exist(user_id):
         await message.answer("Вы уже зарегестрированы!")
-    elif message.text == "/reg":
-        await message.answer(
-            "Введите после команды ваше ФИО и адрес проживания.\nК примеру: /reg Иванов Иван Иванович Москва Советский район улица Ленина дом 116 квартира 20\nПишите без запятых и других знаков препинания!"
-        )
+    # elif message.text == "/reg":
+    #     await message.answer(
+    #         "Введите после команды ваше ФИО и адрес проживания.\nК примеру: /reg Иванов Иван Иванович Москва Советский район улица Ленина дом 116 квартира 20\nПишите без запятых и других знаков препинания!"
+    #     )
     else:
-        user_data = message.text.split(" ")[1:]
-        name = f"{user_data[0]} {user_data[1]} {user_data[2]}"
-        city = f"{user_data[3]}"
-        area = f"{user_data[4]} {user_data[5]}"
-        street = f"{user_data[6]} {user_data[7]}"
-        house = f"{user_data[8]} {user_data[9]}"
-        flat = f"{user_data[10]} {user_data[11]}"
+        #     user_data = message.text.split(" ")[1:]
+        #     name = f"{user_data[0]} {user_data[1]} {user_data[2]}"
+        #     city = f"{user_data[3]}"
+        #     area = f"{user_data[4]} {user_data[5]}"
+        #     street = f"{user_data[6]} {user_data[7]}"
+        #     house = f"{user_data[8]} {user_data[9]}"
+        #     flat = f"{user_data[10]} {user_data[11]}"
 
-        botdb.add_user(user_id, name, city, area, street, house, flat)
+        #     botdb.add_user(user_id, name, city, area, street, house, flat)
 
+        #     await message.answer(
+        #         "Поздравляю, вы зарегистрированы! Перезапустите бота командой /start"
+        #     )
+        await Form.name.set()
+        await message.answer("Как вас зовут?")
+
+
+# Получаем имя клиента
+@dp.message_handler(state=Form.name)
+async def user_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["name"] = message.text
         await message.answer(
-            "Поздравляю, вы зарегистрированы! Перезапустите бота командой /start"
+            "Отправьте свой адрес. Пример: Москва, Советский район, улица Ленина, дом 116, квартира 20"
         )
+        await Form.next()
+
+
+# Получаем адрес клиента
+@dp.message_handler(state=Form.adress)
+async def user_adress(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["adress"] = message.text
+        await message.answer(
+            f'Ваши данные:\nИмя: {data["name"]}\nАдресс: {data["adress"]}\nВсё правильно?',
+            reply_markup=successful_kb,
+        )
+        await Form.next()
+
+
+# Подтверждение введеных данных
+@dp.message_handler(state=Form.successful)
+async def succesful_reg(message: types.Message, state: FSMContext):
+    if message.text.lower() == "нет":
+        await message.answer("Тогда начнем заново. Ваше имя?", reply_markup=delete_kb)
+        await Form.name.set()
+    else:
+        async with state.proxy() as data:
+            adress = data["adress"].split(",")
+            name = data["name"]
+            city = adress[0]
+            area = adress[1]
+            street = adress[2]
+            house = adress[3]
+            flat = adress[4]
+
+            botdb.add_user(message.from_user.id, name, city, area, street, house, flat)
+
+            await message.answer(
+                "Поздравляю, вы зарегистрированы! Перезапустите бота командой /start",
+                reply_markup=delete_kb,
+            )
+        await state.finish()
 
 
 # сообщение с кнопкой оплаты
@@ -117,26 +180,14 @@ async def successful_payment(message: types.Message):
     )
 
 
-# отмена операции. Пример: отмена оформления заявки на вынос мусора
-@dp.message_handler(state="*", commands="cancel")
-@dp.message_handler(Text(equals="отмена", ignore_case=True), state="*")
-async def cancel_handler(message: types.Message, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state is None:
-        await message.answer("Нечего отменять")
-        return
-
-    await state.finish()
-    await message.answer("Отмена операции")
-
-
 # получаем описание к заказу
 @dp.message_handler(state=Description.description)
 async def write_description(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["description"] = message.text
         await message.answer(
-            f"Вы уверены в своем описании(да/нет)?\n{data['description']}"
+            f"Вы уверены в своем описании(да/нет)?\n{data['description']}",
+            reply_markup=successful_kb,
         )
     await Description.next()
 
@@ -145,7 +196,9 @@ async def write_description(message: types.Message, state: FSMContext):
 @dp.message_handler(state=Description.successful)
 async def successful_order(message: types.Message, state: FSMContext):
     if message.text.lower() == "нет":
-        await message.answer("Измените описание к вашему заказ:")
+        await message.answer(
+            "Измените описание к вашему заказ:", reply_markup=delete_kb
+        )
         await Description.description.set()
     else:
         async with state.proxy() as data:
@@ -153,8 +206,11 @@ async def successful_order(message: types.Message, state: FSMContext):
             date = str(datetime.now().strftime("%d-%m-%Y %H:%M"))
             botdb.add_order(user_id, data["description"], date)
             order_id = botdb.data_order(user_id, status="active")[0][0]
-            await message.answer(f"Ваш заказ №{order_id} офомлен!")
+            await message.answer(
+                f"Ваш заказ №{order_id} офомлен!", reply_markup=delete_kb
+            )
         await state.finish()
+        await message.answer("Hello, world!", reply_markup=user_kb)
 
 
 @dp.message_handler()

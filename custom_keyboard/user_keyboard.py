@@ -1,12 +1,22 @@
 from aiogram import types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from disp import bot, botdb, dp, PRICE
 from config import PAYMENTS_TOKEN
 from states.user import Description
 import text
 
+successful_kb = ReplyKeyboardMarkup()  # type: ignore
+successful_kb.add(types.KeyboardButton("Да")).add(types.KeyboardButton("Нет"))  # type: ignore
 
+delete_kb = ReplyKeyboardRemove()  # type: ignore
+
+# пользовательское меню
 user_kb = InlineKeyboardMarkup(row_width=2)
 
 buttons = [
@@ -24,7 +34,7 @@ for button in buttons:
 
 @dp.callback_query_handler()
 async def callback(call: types.CallbackQuery):
-    if call.data == "profil":
+    if call.data == "profile":
         await call.message.answer("Button PROFILE succesful work!")
 
     elif call.data == "takeout":
