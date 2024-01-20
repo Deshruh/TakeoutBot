@@ -4,6 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from disp import bot, botdb, dp, PRICE
 from config import PAYMENTS_TOKEN
 from states.user import Description
+import text
 
 
 user_kb = InlineKeyboardMarkup(row_width=2)
@@ -13,7 +14,7 @@ buttons = [
     "Оплатить-buy",
     "История-history",
     "Правила-rules",
-    "Меню-menu",
+    "Профиль-profile",
 ]
 
 for button in buttons:
@@ -23,8 +24,8 @@ for button in buttons:
 
 @dp.callback_query_handler()
 async def callback(call: types.CallbackQuery):
-    if call.data == "menu":
-        await call.message.answer("Button MENU succesful work!")
+    if call.data == "profil":
+        await call.message.answer("Button PROFILE succesful work!")
 
     elif call.data == "takeout":
         if botdb.order_exist(call.message.chat.id):
@@ -56,16 +57,10 @@ async def callback(call: types.CallbackQuery):
     elif call.data == "history":
         chat_id = call.message.chat.id
         orders = botdb.data_order(chat_id)
+
         name = botdb.data_user(chat_id)[0][1]
-
-        # await bot.send_message(
-        #    chat_id,
-        #    md.text(
-
-        #    )
-        # )
         history = ""
-        for order in orders:
+        for order in orders[::-1]:
             history += f"""
 Номер заказа: {order[0]}
 Статус: {order[1]}
@@ -80,6 +75,6 @@ async def callback(call: types.CallbackQuery):
         )
 
     elif call.data == "rules":
-        await call.message.answer("Button RULES succesful work!")
+        await call.message.answer(text.rules)
 
     await bot.answer_callback_query(call.id)
