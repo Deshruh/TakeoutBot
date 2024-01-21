@@ -1,16 +1,19 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
-from aiogram.types import ParseMode
+
+# from aiogram.types import ParseMode
 from aiogram.types.message import ContentType
-import aiogram.utils.markdown as md
+
+# import aiogram.utils.markdown as md
 
 from datetime import datetime
 
-from disp import PRICE, bot, dp, botdb, check_sub
+from disp import PRICE, bot, dp, botdb, check_sub, data_profile
 import config
 from custom_keyboard.user_keyboard import user_kb, successful_kb, delete_kb
 from states.user import Description, Form
+import text
 
 
 @dp.message_handler(commands=["start"])
@@ -23,22 +26,14 @@ async def start(message: types.Message):
     if check_mem != True:
         await message.answer(check_mem)
     elif botdb.user_exist(user_id):
-        await message.answer("Hello, world!", reply_markup=user_kb)
+        await message.answer(text.greeting, reply_markup=user_kb)
     else:
-        await message.answer(
-            f"Здравствуй, {message.from_user.first_name}! Если ты здесь впервые, то рекомендую тебе отправить команду /help"
-        )
+        await message.answer(f"{message.from_user.first_name}, {text.greet_no_reg}")
 
 
 @dp.message_handler(commands=["help"])
 async def help(message: types.Message):
-    await message.answer(
-        f"""Этот бот предназначен для создания сервиса по вынесу вашего мусора не выходя из дома\n
-Чтобы начать пользоваться ботом, необходимо подписаться на канал {config.CHANNEL_LINK} и предоставить ваше ФИО и адрес места жительства. Для регистрации отправьте команду /reg.\n
-Дальше вам необходимо оформить подписку на сервис или же, если вы у нас впервые, воспользоваться бесплатной пробной заявкой!\n
-Затем вы можете оформить заказ просто нажав на кнопку "Вынести".\n
-Напоминаем, что первый заказ - бесплатный!"""
-    )
+    await message.answer(text.help_text)
 
 
 # отмена операции. Пример: отмена оформления заявки на вынос мусора
@@ -47,39 +42,88 @@ async def help(message: types.Message):
 async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
-        await message.answer("Нечего отменять")
+        await message.answer(text.cancel[0])
         return
 
     await state.finish()
-    await message.answer("Отмена операции")
+    await message.answer(text.cancel[1])
 
 
 # регистрация клиента
 @dp.message_handler(commands=["reg"])
 async def registration(message: types.Message):
     user_id = message.from_user.id
-    if botdb.user_exist(user_id):
-        await message.answer("Вы уже зарегестрированы!")
-    # elif message.text == "/reg":
-    #     await message.answer(
-    #         "Введите после команды ваше ФИО и адрес проживания.\nК примеру: /reg Иванов Иван Иванович Москва Советский район улица Ленина дом 116 квартира 20\nПишите без запятых и других знаков препинания!"
-    #     )
+    user_channel_status = await bot.get_chat_member(
+        chat_id=config.CHANNEL_ID, user_id=user_id
+    )
+    check_mem = check_sub(user_channel_status)
+    if check_mem != True:
+        await message.answer(check_mem)
+    elif botdb.user_exist(user_id):
+        await message.answer(text.user_exist)
     else:
-        #     user_data = message.text.split(" ")[1:]
-        #     name = f"{user_data[0]} {user_data[1]} {user_data[2]}"
-        #     city = f"{user_data[3]}"
-        #     area = f"{user_data[4]} {user_data[5]}"
-        #     street = f"{user_data[6]} {user_data[7]}"
-        #     house = f"{user_data[8]} {user_data[9]}"
-        #     flat = f"{user_data[10]} {user_data[11]}"
-
-        #     botdb.add_user(user_id, name, city, area, street, house, flat)
-
-        #     await message.answer(
-        #         "Поздравляю, вы зарегистрированы! Перезапустите бота командой /start"
-        #     )
         await Form.name.set()
-        await message.answer("Как вас зовут?")
+        await message.answer(text.registration[0])
+
+
+# Выдача правил
+@dp.message_handler(commands=["rules"])
+async def rules(message: types.Message):
+    await message.answer(text.rules)
+
+
+# Выдача истории заказов
+@dp.message_handler(commands=["history"])
+async def history(message: types.Message):
+    user_id = message.from_user.id
+    if botdb.user_exist(user_id):
+        orders = botdb.data_order(user_id)
+        name = botdb.data_user(user_id)[0][1]
+
+        history = ""
+        for order in orders[::-1]:
+            history += f"""
+Номер заказа: {order[0]}
+Статус: {order[1]}
+Описание: {order[2]}
+Дата оформления: {order[3].split(' ')[0]}
+"""
+
+        if history == "":
+            await message.answer("У вас нет ни одного оформленного заказа")
+        else:
+            await message.answer(
+                f"""
+                История заказов пользователя \"{name}\":\n{history}
+                """
+            )
+    else:
+        await message.answer(text.not_registred)
+
+
+# Профиль пользователя
+@dp.message_handler(commands=["profile"])
+async def profile(message: types.Message):
+    user_id = message.from_user.id
+    if botdb.user_exist(user_id):
+        chat_id = message.chat.id
+        await message.answer(data_profile(chat_id))
+    else:
+        await message.answer(text.not_registred)
+
+
+# Профиль пользователя
+@dp.message_handler(commands=["takeout"])
+async def takeout(message: types.Message):
+    user_id = message.from_user.id
+    if botdb.user_exist(user_id):
+        if botdb.order_exist(message.chat.id):
+            await message.answer(text.order_exist)
+        else:
+            await Description.description.set()
+            await message.answer(text.order_description)
+    else:
+        await message.answer(text.not_registred)
 
 
 # Получаем имя клиента
@@ -87,9 +131,7 @@ async def registration(message: types.Message):
 async def user_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["name"] = message.text
-        await message.answer(
-            "Отправьте свой адрес. Пример: Москва, Советский район, улица Ленина, дом 116, квартира 20"
-        )
+        await message.answer(text.registration[1])
         await Form.next()
 
 
@@ -109,7 +151,7 @@ async def user_adress(message: types.Message, state: FSMContext):
 @dp.message_handler(state=Form.successful)
 async def succesful_reg(message: types.Message, state: FSMContext):
     if message.text.lower() == "нет":
-        await message.answer("Тогда начнем заново. Ваше имя?", reply_markup=delete_kb)
+        await message.answer(text.reg_repeat, reply_markup=delete_kb)
         await Form.name.set()
     else:
         async with state.proxy() as data:
@@ -124,7 +166,7 @@ async def succesful_reg(message: types.Message, state: FSMContext):
             botdb.add_user(message.from_user.id, name, city, area, street, house, flat)
 
             await message.answer(
-                "Поздравляю, вы зарегистрированы! Перезапустите бота командой /start",
+                text.reg_finished,
                 reply_markup=delete_kb,
             )
         await state.finish()
@@ -133,20 +175,15 @@ async def succesful_reg(message: types.Message, state: FSMContext):
 # сообщение с кнопкой оплаты
 @dp.message_handler(commands=["buy"])
 async def buy(message: types.Message):
-    user_channel_status = await bot.get_chat_member(
-        chat_id=config.CHANNEL_ID, user_id=message.from_user.id
-    )
-    check_mem = check_sub(user_channel_status)
-    if check_mem != True:
-        await message.answer(check_mem)
-    else:
+    user_id = message.from_user.id
+    if botdb.user_exist(user_id):
         if config.PAYMENTS_TOKEN.split(":")[1] == "TEST":
-            await bot.send_message(message.chat.id, "Тестовый платеж!")
+            await bot.send_message(message.chat.id, text.test_payment)
 
         await bot.send_invoice(
             message.chat.id,
-            title="Подписка на 1 месяц",
-            description="Описание продукта",
+            title=text.prime,
+            description=text.description_prime,
             provider_token=config.PAYMENTS_TOKEN,
             currency="rub",
             photo_url="https://static.mk.ru/upload/entities/2023/03/09/08/articles/detailPicture/4c/4b/48/ec/e3ca4d5a88ca9c93f6b52524895fdd01.jpg",
@@ -158,6 +195,8 @@ async def buy(message: types.Message):
             start_parameter="one-match-subscripton",
             payload="test-invoice-payload",
         )
+    else:
+        await message.answer(text.not_registred)
 
 
 # pre checkout (необходимо ответить в течении 10 секуд)
@@ -169,7 +208,7 @@ async def pre_checkout_query(pre_checkout_q: types.PreCheckoutQuery):
 # выдача Prime-статуса после оплаты
 @dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT)
 async def successful_payment(message: types.Message):
-    print("SUCCESSFUL PAYMENT")
+    print(text.successful_payment)
     payment_info = message.successful_payment.to_python()
     for k, v in payment_info.items():
         print(f"{k} - {v}")
@@ -196,9 +235,7 @@ async def write_description(message: types.Message, state: FSMContext):
 @dp.message_handler(state=Description.successful)
 async def successful_order(message: types.Message, state: FSMContext):
     if message.text.lower() == "нет":
-        await message.answer(
-            "Измените описание к вашему заказ:", reply_markup=delete_kb
-        )
+        await message.answer(text.change_description, reply_markup=delete_kb)
         await Description.description.set()
     else:
         async with state.proxy() as data:
@@ -210,7 +247,7 @@ async def successful_order(message: types.Message, state: FSMContext):
                 f"Ваш заказ №{order_id} офомлен!", reply_markup=delete_kb
             )
         await state.finish()
-        await message.answer("Hello, world!", reply_markup=user_kb)
+        await message.answer(text.greeting, reply_markup=user_kb)
 
 
 @dp.message_handler()
@@ -222,6 +259,4 @@ async def echo(message: types.Message):
     if check_mem != True:
         await message.answer(check_mem)
     else:
-        await message.answer(
-            "Я не понимаю вас. Отправьте команду /help для получения справки по боту"
-        )
+        await message.answer(text.not_understand)
