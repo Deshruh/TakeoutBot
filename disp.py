@@ -31,10 +31,8 @@ def data_profile(chat_id):
     count_orders = len(botdb.data_order(chat_id))
     user = botdb.data_user(chat_id)[0]
     name = user[1]
-    adress = ""
-    for i in range(2, 7):
-        adress += user[i]
-    if user[7] != 1:
+    adress = user[2]
+    if user[-1] != 1:
         prime = "Не оплачено"
     else:
         prime = "Активирован"

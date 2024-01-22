@@ -11,8 +11,13 @@ from datetime import datetime
 
 from disp import PRICE, bot, dp, botdb, check_sub, data_profile
 import config
-from custom_keyboard.user_keyboard import user_kb, successful_kb, delete_kb
-from states.user import Description, Form
+from custom_keyboard.user_keyboard import (
+    user_kb,
+    successful_kb,
+    delete_kb,
+    edit_profile_kb,
+)
+from states.user import Description, Form, Edit
 import text
 
 
@@ -43,6 +48,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
         await message.answer(text.cancel[0])
+        await message.answer(text.greeting, reply_markup=user_kb)
         return
 
     await state.finish()
@@ -107,12 +113,12 @@ async def profile(message: types.Message):
     user_id = message.from_user.id
     if botdb.user_exist(user_id):
         chat_id = message.chat.id
-        await message.answer(data_profile(chat_id))
+        await message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)
     else:
         await message.answer(text.not_registred)
 
 
-# Профиль пользователя
+# Оформление заказа
 @dp.message_handler(commands=["takeout"])
 async def takeout(message: types.Message):
     user_id = message.from_user.id
@@ -155,20 +161,11 @@ async def succesful_reg(message: types.Message, state: FSMContext):
         await Form.name.set()
     else:
         async with state.proxy() as data:
-            adress = data["adress"].split(",")
+            adress = data["adress"]
             name = data["name"]
-            city = adress[0]
-            area = adress[1]
-            street = adress[2]
-            house = adress[3]
-            flat = adress[4]
+            botdb.add_user(message.from_user.id, name, adress)
 
-            botdb.add_user(message.from_user.id, name, city, area, street, house, flat)
-
-            await message.answer(
-                text.reg_finished,
-                reply_markup=delete_kb,
-            )
+            await message.answer(text.reg_finished, reply_markup=delete_kb)
         await state.finish()
 
 
@@ -248,6 +245,43 @@ async def successful_order(message: types.Message, state: FSMContext):
             )
         await state.finish()
         await message.answer(text.greeting, reply_markup=user_kb)
+
+
+@dp.message_handler(state=Edit.name)
+async def edit_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["name"] = message.text
+    await message.answer(text.edit_adress)
+    await Edit.next()
+
+
+@dp.message_handler(state=Edit.adress)
+async def edit_adress(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["adress"] = message.text
+        await message.answer(
+            f'Подтвердить изменения?\nИмя: {data["name"]}\nАдресс: {data["adress"]}',
+            reply_markup=successful_kb,
+        )
+    await Edit.next()
+
+
+@dp.message_handler(state=Edit.successful)
+async def succesful_edit(message: types.Message, state: FSMContext):
+    if message.text.lower() == "нет":
+        await message.answer(text.edit_cancel, reply_markup=delete_kb)
+        await message.answer(text.greeting, reply_markup=user_kb)
+    else:
+        async with state.proxy() as data:
+            adress = data["adress"]
+            name = data["name"]
+
+            botdb.edit_user(message.from_user.id, name, adress)
+
+            await message.answer(text.edit_save, reply_markup=delete_kb)
+        await message.answer(text.greeting, reply_markup=user_kb)
+
+    await state.finish()
 
 
 @dp.message_handler()

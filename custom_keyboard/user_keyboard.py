@@ -8,13 +8,18 @@ from aiogram.types import (
 
 from disp import PRICE, bot, botdb, dp, data_profile
 from config import PAYMENTS_TOKEN
-from states.user import Description
+from states.user import Description, Edit
 import text
 
 successful_kb = ReplyKeyboardMarkup()  # type: ignore
 successful_kb.add(types.KeyboardButton("Да")).add(types.KeyboardButton("Нет"))  # type: ignore
 
 delete_kb = ReplyKeyboardRemove()  # type: ignore
+
+# Меню редактирования профиля
+edit_profile_kb = InlineKeyboardMarkup()
+edit_profile_kb.add(InlineKeyboardButton("Назад", callback_data="menu"))  # type: ignore
+edit_profile_kb.add(InlineKeyboardButton("Изменить профиль", callback_data="edit"))  # type: ignore
 
 # Пользовательское меню
 user_kb = InlineKeyboardMarkup(row_width=2)
@@ -34,9 +39,12 @@ for button in buttons:
 
 @dp.callback_query_handler()
 async def callback(call: types.CallbackQuery):
-    if call.data == "profile":
+    if call.data == "menu":
+        await call.message.answer(text.greeting, reply_markup=user_kb)
+
+    elif call.data == "profile":
         chat_id = call.message.chat.id
-        await call.message.answer(data_profile(chat_id))
+        await call.message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)
 
     elif call.data == "takeout":
         if botdb.order_exist(call.message.chat.id):
@@ -88,5 +96,9 @@ async def callback(call: types.CallbackQuery):
 
     elif call.data == "rules":
         await call.message.answer(text.rules)
+
+    elif call.data == "edit":
+        await Edit.name.set()
+        await call.message.answer(text.edit_name)
 
     await bot.answer_callback_query(call.id)

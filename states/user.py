@@ -10,3 +10,9 @@ class Form(StatesGroup):
 class Description(StatesGroup):
     description = State()
     successful = State()
+
+
+class Edit(StatesGroup):
+    name = State()
+    adress = State()
+    successful = State()
