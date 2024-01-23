@@ -40,9 +40,17 @@ for button in buttons:
 @dp.callback_query_handler()
 async def callback(call: types.CallbackQuery):
     if call.data == "menu":
+        await bot.delete_message(
+            chat_id=call.from_user.id, message_id=call.message.message_id
+        )
+
         await call.message.answer(text.greeting, reply_markup=user_kb)
 
     elif call.data == "profile":
+        await bot.delete_message(
+            chat_id=call.from_user.id, message_id=call.message.message_id
+        )
+
         chat_id = call.message.chat.id
         await call.message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)  # type: ignore
 
@@ -57,6 +65,10 @@ async def callback(call: types.CallbackQuery):
             await call.message.answer(text.order_description)
 
     elif call.data == "buy":
+        await bot.delete_message(
+            chat_id=call.from_user.id, message_id=call.message.message_id
+        )
+
         if PAYMENTS_TOKEN.split(":")[1] == "TEST":
             await call.message.answer(text.test_payment)
 
@@ -77,6 +89,10 @@ async def callback(call: types.CallbackQuery):
         )
 
     elif call.data == "history":
+        await bot.delete_message(
+            chat_id=call.from_user.id, message_id=call.message.message_id
+        )
+
         chat_id = call.message.chat.id
         orders = botdb.data_order(chat_id)
         name = botdb.data_user(chat_id)[0][1]
@@ -99,10 +115,18 @@ async def callback(call: types.CallbackQuery):
         await call.message.answer(text.greeting, reply_markup=user_kb)
 
     elif call.data == "rules":
+        await bot.delete_message(
+            chat_id=call.from_user.id, message_id=call.message.message_id
+        )
+
         await call.message.answer(text.rules)
         await call.message.answer(text.greeting, reply_markup=user_kb)
 
     elif call.data == "edit":
+        await bot.delete_message(
+            chat_id=call.from_user.id, message_id=call.message.message_id
+        )
+        
         await Edit.name.set()
         await call.message.answer(text.edit_name)
 

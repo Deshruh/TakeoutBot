@@ -1,7 +1,7 @@
 import config
 
 
-greeting = "Hello, world!"
+greeting = "Главное меню"
 
 greet_no_reg = "добро пожаловать! Если ты здесь впервые, то рекомендую тебе отправить команду /help"
 
