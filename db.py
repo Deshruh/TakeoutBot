@@ -17,7 +17,7 @@ class BotDB:
             user_id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             adress TEXT NOT NULL,
-            prime INTEGER DEFAULT 0
+            prime INTEGER DEFAULT 1
             )
             """
         )  # Создание таблицы Users
@@ -57,6 +57,14 @@ class BotDB:
         self.cursor.execute(
             "UPDATE Users set name=?, adress=? where user_id=?",
             (name, adress, user_id),
+        )
+        self.conn.commit()
+
+    def prime(self, user_id, prime):
+        """Изменение Prime-статуса"""
+        self.cursor.execute(
+            "UPDATE Users set prime = ? where user_id=?",
+            (prime, user_id),
         )
         self.conn.commit()
 

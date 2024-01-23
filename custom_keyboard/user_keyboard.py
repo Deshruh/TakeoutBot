@@ -11,7 +11,7 @@ from config import PAYMENTS_TOKEN
 from states.user import Description, Edit
 import text
 
-successful_kb = ReplyKeyboardMarkup()  # type: ignore
+successful_kb = ReplyKeyboardMarkup(resize_keyboard=True)  # type: ignore
 successful_kb.add(types.KeyboardButton("Да")).add(types.KeyboardButton("Нет"))  # type: ignore
 
 delete_kb = ReplyKeyboardRemove()  # type: ignore
@@ -44,10 +44,13 @@ async def callback(call: types.CallbackQuery):
 
     elif call.data == "profile":
         chat_id = call.message.chat.id
-        await call.message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)
+        await call.message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)  # type: ignore
 
     elif call.data == "takeout":
-        if botdb.order_exist(call.message.chat.id):
+        prime = data_profile(call.message.chat.id, data=True)[-1]
+        if prime <= 0:  # type: ignore
+            await call.message.answer(text.not_prime)
+        elif botdb.order_exist(call.message.chat.id):
             await call.message.answer(text.order_exist)
         else:
             await Description.description.set()
@@ -93,9 +96,11 @@ async def callback(call: types.CallbackQuery):
                 История заказов пользователя \"{name}\":\n{history}
                 """
             )
+        await call.message.answer(text.greeting, reply_markup=user_kb)
 
     elif call.data == "rules":
         await call.message.answer(text.rules)
+        await call.message.answer(text.greeting, reply_markup=user_kb)
 
     elif call.data == "edit":
         await Edit.name.set()

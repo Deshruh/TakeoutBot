@@ -27,13 +27,13 @@ def check_sub(check_mem):
 
 
 # Данные пользователя для профиля
-def data_profile(chat_id):
+def data_profile(chat_id, data=False):
     count_orders = len(botdb.data_order(chat_id))
     user = botdb.data_user(chat_id)[0]
     name = user[1]
     adress = user[2]
-    if user[-1] != 1:
-        prime = "Не оплачено"
-    else:
-        prime = "Активирован"
-    return f"Ваш профиль\n\nИмя: {name}\nАдрес: {adress}\nPrime-подписка: {prime}\nКол-во заказов: {count_orders}"
+    prime = user[-1]
+
+    if data:
+        return [name, adress, count_orders, prime]
+    return f"Ваш профиль\n\nИмя: {name}\nАдрес: {adress}\nPrime-подписка: {prime} доступных заказов\nКол-во заказов: {count_orders}"

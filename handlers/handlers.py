@@ -1,11 +1,7 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
-
-# from aiogram.types import ParseMode
 from aiogram.types.message import ContentType
-
-# import aiogram.utils.markdown as md
 
 from datetime import datetime
 
@@ -48,11 +44,11 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
         await message.answer(text.cancel[0])
-        await message.answer(text.greeting, reply_markup=user_kb)
-        return
+    else:
+        await message.answer(text.cancel[1])
 
     await state.finish()
-    await message.answer(text.cancel[1])
+    await message.answer(text.greeting, reply_markup=user_kb)
 
 
 # регистрация клиента
@@ -76,6 +72,7 @@ async def registration(message: types.Message):
 @dp.message_handler(commands=["rules"])
 async def rules(message: types.Message):
     await message.answer(text.rules)
+    await message.answer(text.greeting, reply_markup=user_kb)
 
 
 # Выдача истории заказов
@@ -106,6 +103,8 @@ async def history(message: types.Message):
     else:
         await message.answer(text.not_registred)
 
+    await message.answer(text.greeting, reply_markup=user_kb)
+
 
 # Профиль пользователя
 @dp.message_handler(commands=["profile"])
@@ -113,7 +112,7 @@ async def profile(message: types.Message):
     user_id = message.from_user.id
     if botdb.user_exist(user_id):
         chat_id = message.chat.id
-        await message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)
+        await message.answer(data_profile(chat_id), reply_markup=edit_profile_kb)  # type: ignore
     else:
         await message.answer(text.not_registred)
 
@@ -122,6 +121,10 @@ async def profile(message: types.Message):
 @dp.message_handler(commands=["takeout"])
 async def takeout(message: types.Message):
     user_id = message.from_user.id
+
+    if data_profile(user_id, data=True)[-1] <= 0:  # type: ignore
+        await message.answer(text.not_prime)
+        return
     if botdb.user_exist(user_id):
         if botdb.order_exist(message.chat.id):
             await message.answer(text.order_exist)
@@ -205,6 +208,8 @@ async def pre_checkout_query(pre_checkout_q: types.PreCheckoutQuery):
 # выдача Prime-статуса после оплаты
 @dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT)
 async def successful_payment(message: types.Message):
+    prime = data_profile(message.chat.id, data=True)[-1] + 30  # type: ignore
+    botdb.prime(message.chat.id, prime)
     print(text.successful_payment)
     payment_info = message.successful_payment.to_python()
     for k, v in payment_info.items():
@@ -214,6 +219,8 @@ async def successful_payment(message: types.Message):
         message.chat.id,
         f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно!",
     )
+    await bot.send_message(message.chat.id, "Подписка оформлена!")
+    await bot.send_message(message.chat.id, text.greeting, reply_markup=user_kb)
 
 
 # получаем описание к заказу
@@ -236,10 +243,14 @@ async def successful_order(message: types.Message, state: FSMContext):
         await Description.description.set()
     else:
         async with state.proxy() as data:
+            prime = data_profile(message.chat.id, data=True)[-1] - 1  # type: ignore
             user_id = message.from_user.id
             date = str(datetime.now().strftime("%d-%m-%Y %H:%M"))
+
+            botdb.prime(user_id, prime)
             botdb.add_order(user_id, data["description"], date)
             order_id = botdb.data_order(user_id, status="active")[0][0]
+
             await message.answer(
                 f"Ваш заказ №{order_id} офомлен!", reply_markup=delete_kb
             )
@@ -279,9 +290,9 @@ async def succesful_edit(message: types.Message, state: FSMContext):
             botdb.edit_user(message.from_user.id, name, adress)
 
             await message.answer(text.edit_save, reply_markup=delete_kb)
-        await message.answer(text.greeting, reply_markup=user_kb)
 
     await state.finish()
+    await message.answer(text.greeting, reply_markup=user_kb)
 
 
 @dp.message_handler()
