@@ -7,6 +7,7 @@ from datetime import datetime
 
 from disp import PRICE, bot, dp, botdb, check_sub, data_profile
 import config
+from custom_keyboard.admin_keyboard import admin_kb
 from custom_keyboard.user_keyboard import (
     user_kb,
     successful_kb,
@@ -20,6 +21,10 @@ import text
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     user_id = message.from_user.id
+    if user_id in config.ADMIN_ID:
+        await message.answer("Hello, admin!", reply_markup=admin_kb)
+        return
+
     user_channel_status = await bot.get_chat_member(
         chat_id=config.CHANNEL_ID, user_id=user_id
     )
@@ -294,14 +299,3 @@ async def succesful_edit(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer(text.greeting, reply_markup=user_kb)
 
-
-@dp.message_handler()
-async def echo(message: types.Message):
-    user_channel_status = await bot.get_chat_member(
-        chat_id=config.CHANNEL_ID, user_id=message.from_user.id
-    )
-    check_mem = check_sub(user_channel_status)
-    if check_mem != True:
-        await message.answer(check_mem)
-    else:
-        await message.answer(text.not_understand)

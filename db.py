@@ -91,18 +91,33 @@ class BotDB:
         )
         return self.conn.commit()
 
-    def data_order(self, user_id, status=None):
+    def data_order(self, user_id=None, status=None):
         """Извлечения данных о заказе"""
-        if status == "active":
+        if user_id == None and status == None:
+            data = self.cursor.execute('SELECT * FROM "Orders"')  # все активные заказы
+        elif user_id == None and status == "active":
+            data = self.cursor.execute(
+                'SELECT * FROM "Orders" WHERE "status" = "active"'
+            )  # все активные заказы
+        elif user_id == None and status == "finished":
+            data = self.cursor.execute(
+                'SELECT * FROM "Orders" WHERE "status" = "finished"'
+            )  # все активные заказы
+        elif status == "finished":
+            data = self.cursor.execute(
+                'SELECT * FROM "Orders" WHERE "user_id" = ? and "status" = "finished"',
+                (user_id,),
+            )  # только завершенные заказы конкретного клиента
+        elif status == "active":
             data = self.cursor.execute(
                 'SELECT * FROM "Orders" WHERE "user_id" = ? and "status" = "active"',
                 (user_id,),
-            )
+            )  # только активные заказы конкретного клиента
         else:
             data = self.cursor.execute(
                 'SELECT * FROM "Orders" WHERE "user_id" = ?',
                 (user_id,),
-            )
+            )  # все заказы конкретного клиента
 
         return data.fetchall()
 
