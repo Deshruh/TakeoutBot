@@ -14,6 +14,7 @@ admin_kb = ReplyKeyboardMarkup(resize_keyboard=True)  # type: ignore
 buttons = ["Orders", "History"]
 admin_kb.add(types.KeyboardButton("Profile"))  # type: ignore
 admin_kb.add(*buttons)
+admin_kb.add("Taken orders")
 
 
 def nav_order(orders_id):
@@ -40,11 +41,11 @@ def order_keyboard(order_id):
     return order_kb
 
 
-def data_orders(active_orders, start=0):
+def data_orders(orders, start=0):
     list_orders = ""
     orders_id = []
     end = start + 5
-    for order in active_orders[start:end]:
+    for order in orders[start:end]:
         orders_id.append(order[0])
         user_id = order[-1]
         user = botdb.data_user(user_id)[0]
@@ -88,9 +89,15 @@ async def left_orders(call: types.CallbackQuery):
 async def right_orders(call: types.CallbackQuery):
     start = int(call.data.split("_")[1]) + 1
     active_orders = botdb.data_order(status="active")
-    if start > active_orders[-1][0]:
-        await call.answer("Вы и так в самом конце списка")
-        return
+    try:
+        if start > active_orders[-1][0]:
+            await call.answer("Вы и так в самом конце списка")
+            return
+    except:
+        continued_orders = botdb.data_order(status="continued")
+        if start > continued_orders[-1][0]:
+            await call.answer("Вы и так в самом конце списка")
+            return
 
     list_orders, orders_id = data_orders(active_orders, start)
     await call.message.answer(
@@ -110,4 +117,7 @@ async def back(call: types.CallbackQuery):
 
 @dp.callback_query_handler(Text(startswith="access_"))
 async def access(call: types.CallbackQuery):
-    await call.message.answer("All good!")
+    order_id = int(call.data.split("_")[1])
+    botdb.edit_order(order_id, "continued")
+    await call.message.answer("Вы взяли заказ на исполнение!")
+    await call.answer()

@@ -93,7 +93,11 @@ class BotDB:
 
     def data_order(self, user_id=None, status=None):
         """Извлечения данных о заказе"""
-        if user_id == None and status == None:
+        if status == "continued":
+            data = self.cursor.execute(
+                'SELECT * FROM "Orders" WHERE "status" = "continued"'
+            )  # все выполнямые заказы
+        elif user_id == None and status == None:
             data = self.cursor.execute('SELECT * FROM "Orders"')  # все активные заказы
         elif user_id == None and status == "active":
             data = self.cursor.execute(
@@ -120,6 +124,13 @@ class BotDB:
             )  # все заказы конкретного клиента
 
         return data.fetchall()
+
+    def edit_order(self, order_id, status):
+        """Изменение статуса заказа"""
+        self.cursor.execute(
+            "UPDATE Orders set status = ? where id=?", (status, order_id)
+        )
+        self.conn.commit()
 
     def close(self):
         """Закрытие соединения с БД"""

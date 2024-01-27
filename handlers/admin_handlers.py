@@ -23,3 +23,16 @@ async def orders(message: types.Message):
                 f"Текущие активные заказы:\n\n{list_orders}",
                 reply_markup=nav_order(orders_id),
             )
+
+
+@dp.message_handler(Text("Taken orders"))
+async def taken_order(message: types.Message):
+    orders = botdb.data_order(status="continued")
+    if orders == []:
+        await message.answer("Нет принятых заказов")
+    else:
+        list_orders, orders_id = data_orders(orders)
+        await message.answer(
+            f"Текущие принятые заказы:\n\n{list_orders}",
+            reply_markup=nav_order(orders_id),
+        )
